@@ -1,0 +1,7 @@
+*.iso
+*.o
+
+isodir
+sysroot
+iso_root
+limine
