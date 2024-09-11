@@ -31,11 +31,11 @@ void* malloc_same() {
 }
 
 void free_same(void *ptr) {
+    memset(ptr,0,obj_size);
     ptr -= (uint64_t)mem;
     uint64_t index = (uint64_t) ptr / obj_size;
     uint64_t arr_index = index / 8;
     uint8_t offset = index % 8;
-
     mem_used[arr_index] &= !(1 << offset);
 }
 

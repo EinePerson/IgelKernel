@@ -85,9 +85,9 @@ override KLDFLAGS += \
 
 # Use "find" to glob all *.c, *.S, and *.asm files in the tree and obtain the
 # object and header dependency file names.
-override CFILES = $(shell cd kernel && find -L * -type f -name '*.c' | LC_ALL=C sort)
-override ASFILES = $(shell cd kernel && find -L * -type f -name '*.S' | LC_ALL=C sort)
-override NASMFILES = $(shell cd kernel && find -L * -type f -name '*.asm' | LC_ALL=C sort)
+override CFILES = $(shell cd src && find -L * -type f -name '*.c' | LC_ALL=C sort)
+override ASFILES = $(shell cd src && find -L * -type f -name '*.S' | LC_ALL=C sort)
+override NASMFILES = $(shell cd src && find -L * -type f -name '*.asm' | LC_ALL=C sort)
 
 override CFILES += $(shell cd arch && find -L * -type f -name '*.c' | LC_ALL=C sort)
 override ASFILES += $(shell cd arch && find -L * -type f -name '*.S' | LC_ALL=C sort)
@@ -111,18 +111,18 @@ bin/$(OUTPUT): Makefile linker.ld $(OBJ)
 -include $(HEADER_DEPS)
 
 # Compilation rules for *.c files.
-obj/%.c.o: kernel/%.c Makefile
+obj/%.c.o: src/%.c Makefile
 
 	mkdir -p "$$(dirname $@)"
 	$(KCC) $(KCFLAGS) $(KCPPFLAGS) -c $< -o $@
 
 # Compilation rules for *.S files.
-obj/%.S.o: kernel/%.S Makefile
+obj/%.S.o: src/%.S Makefile
 	mkdir -p "$$(dirname $@)"
 	$(KCC) $(KCFLAGS) $(KCPPFLAGS) -c $< -o $@
 
 # Compilation rules for *.asm (nasm) files.
-obj/%.asm.o: kernel/%.asm Makefile
+obj/%.asm.o: src/%.asm Makefile
 	mkdir -p "$$(dirname $@)"
 	nasm $(KNASMFLAGS) $< -o $@
 

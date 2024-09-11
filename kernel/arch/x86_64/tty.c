@@ -51,7 +51,7 @@ void terminal_putchar(char c) {
 	unsigned char uc = c;
 	terminal_putentryat(uc, color, terminal_column, terminal_row);
 	terminal_row += 12;
-	if (terminal_column == frame_buffer->width) {
+	if (terminal_row >= frame_buffer->width) {
 		terminal_row = 0;
 		terminal_column += 16;
 		scrollOverflow();

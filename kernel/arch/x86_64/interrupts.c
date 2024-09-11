@@ -1,13 +1,103 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <drivers/keyboard.h>
+#include <kernel/APIC.h>
 
 #include <kernel/interrupts.h>
 
-#define IDT_MAX_DESCRIPTORS 32
+#define IDT_MAX_DESCRIPTORS 64
 
-void* interrupt_pointers[32] = {divide_error,debug,NMII,breakP,overflow,bound,inv_op,device_np,double_fault,co_seg_over,inv_tss,seg_abs,ss_fault,prot,page_fault,
+__attribute__ ((interrupt))
+void PITI(struct interrupt_frame *frame) {
+    printf("PITI");
+    end_of_interrupt();
+}
+
+__attribute__ ((interrupt))
+void cascade(struct interrupt_frame *frame) {
+    printf("Cascade");
+    end_of_interrupt();
+}
+
+__attribute__ ((interrupt))
+void com2(struct interrupt_frame *frame) {
+    printf("COM2");
+    end_of_interrupt();
+}
+
+__attribute__ ((interrupt))
+void com1(struct interrupt_frame *frame) {
+    printf("COM1");
+    end_of_interrupt();
+}
+
+__attribute__ ((interrupt))
+void ltp2(struct interrupt_frame *frame) {
+    printf("LPT2");
+    end_of_interrupt();
+}
+
+void floppy_disk(struct interrupt_frame *frame) {
+    printf("FLOPPY");
+    end_of_interrupt();
+}
+
+__attribute__ ((interrupt))
+void spurious(struct interrupt_frame *frame) {
+    printf("supurios");
+    end_of_interrupt();
+}
+
+__attribute__ ((interrupt))
+void cmos(struct interrupt_frame *frame) {
+    printf("CMOS");
+    end_of_interrupt();
+}
+
+__attribute__ ((interrupt))
+void periph(struct interrupt_frame *frame) {
+    printf("Peripheral");
+    end_of_interrupt();
+}
+
+__attribute__ ((interrupt))
+void mouse(struct interrupt_frame *frame) {
+    printf("mouse");
+    end_of_interrupt();
+}
+
+__attribute__ ((interrupt))
+void copu(struct interrupt_frame *frame) {
+    printf("Coprocessor");
+    end_of_interrupt();
+}
+
+__attribute__ ((interrupt))
+void pATA(struct interrupt_frame *frame) {
+    printf("Primary ATA");
+    end_of_interrupt();
+}
+
+__attribute__ ((interrupt))
+void sATA(struct interrupt_frame *frame) {
+    printf("Secondary ATA");
+    end_of_interrupt();
+}
+
+__attribute__ ((interrupt))
+void pic_remap(struct interrupt_frame *frame) {
+    printf("PIC");
+    end_of_interrupt();
+}
+
+void* interrupt_pointers[IDT_MAX_DESCRIPTORS] = {divide_error,debug,NMII,breakP,overflow,bound,inv_op,device_np,double_fault,co_seg_over,inv_tss,seg_abs,ss_fault,prot,page_fault,
     reserved,fpu_err,all_check,mach_check,simd,virt_exc,con_p_excetpion,
-    reserved,reserved,reserved,reserved,reserved,reserved,reserved,reserved,reserved,reserved};//Currently only exceptions
+    reserved,reserved,reserved,reserved,reserved,reserved,reserved,reserved,reserved,reserved,
+    //PIC remaped
+    pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,
+    //APIC
+    PITI,keyboard_handler,cascade,com2,com1,ltp2,floppy_disk,spurious,cmos,periph,periph,periph,mouse,copu,pATA,sATA};
 
 typedef struct {
     uint16_t    isr_low;      // The lower 16 bits of the ISR's address
