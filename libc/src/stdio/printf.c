@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 
+char buf[32];
+
 static bool print(const char* data, size_t length) {
     const unsigned char* bytes = (const unsigned char*) data;
     for (size_t i = 0; i < length; i++)
@@ -61,6 +63,29 @@ int printf(const char* restrict format, ...) {
             if (!print(str, len))
                 return -1;
             written += len;
+        } else if(*format == 'd'){
+            format++;
+            int i = (int) va_arg(parameters, int /* char promotes to int */);
+            if(i < 0) {
+                putchar('-');
+                written++;
+            }
+            if (!maxrem) {
+                // TODO: Set errno to EOVERFLOW.
+                return -1;
+            }
+            int j = 0;
+            while (i != 0){
+                buf[j] = (i % 10) + '0';
+                i /= 10;
+                j++;
+            }
+            written += j;
+            while (j > 0){
+                putchar(buf[j - 1]);
+                j--;
+            }
+            memset(buf,0,32);
         } else {
             format = format_begun_at;
             size_t len = strlen(format);

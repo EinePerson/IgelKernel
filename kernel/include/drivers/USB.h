@@ -5,6 +5,8 @@
 #ifndef USB_H
 #define USB_H
 
+#include <stdint.h>
+
 struct xHCI_capabilities {
     uint8_t length;
     uint8_t reserved;

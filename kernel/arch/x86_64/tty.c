@@ -47,6 +47,25 @@ void terminal_putentryat(unsigned char c, uint32_t color, size_t x, size_t y) {
 	}
 }
 
+void terminal_remove(size_t x,size_t y,size_t length){
+    uint32_t* buffer = terminal_buffer + (x * frame_buffer->width + y) * 4;
+    for (size_t k = 0; k < length; k++) {
+        if(terminal_row <= 0)return;
+        terminal_row -= 12;
+        for (int i = 0; i < 13; i++) {
+            for (int j = 0; j < 8; j++) {
+                buffer[0] = 0;
+                buffer++;
+            }
+            buffer += frame_buffer->width - 8;
+        }
+    }
+}
+
+void terminal_removeLast(size_t length){
+    terminal_remove(terminal_column,terminal_row - 12 * length,length);
+}
+
 void terminal_putchar(char c) {
 	unsigned char uc = c;
 	terminal_putentryat(uc, color, terminal_column, terminal_row);
@@ -84,4 +103,11 @@ void scroll(){
 
 void scrollOverflow(){
 	if(terminal_column >= frame_buffer->height)scroll();
+}
+
+void terminal_nextLine(){
+    terminal_row = 0;
+    terminal_column += 16;
+    scrollOverflow();
+    if (terminal_row == frame_buffer->height)terminal_row = 0;
 }

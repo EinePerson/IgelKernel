@@ -25,9 +25,11 @@ void* map_virtual_address(void* physical_address);
 void* get_page_pointer();
 
 void* get_phys_addr(void* virt_addr);
+void* get_virtual_address(struct Memory_Virtual_Address addr);
 
 struct page_existing* get_existens_map_default();
 struct page_existing* get_existens_map(void* cr3,int8_t depth);
+struct Memory_Virtual_Address find_next_free_page_area(uint8_t depth,uint64_t min_size,uint16_t pml4_start,uint16_t pdpt_start,uint16_t pd_start,uint16_t pt_start);
 
 uint16_t next_free_pml4();
 

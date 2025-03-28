@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <limine.h>
 
+#define DEFAULT_KERNEL_PAGE_FLAGS 0x2 | 0x1
+#define DEFAULT_USER_PAGE_FLAGS 0x4 | 0x2 | 0x1;
+
 struct process;
 
 struct free_memory{
@@ -75,3 +78,7 @@ struct page_dir_pointer* get_pml4();
 struct page_directory* get_pdpt();
 struct page_table* get_pd();
 void* get_pt();
+
+void init_translator();
+
+void* get_physical_address(void* virt,uint64_t cr3);

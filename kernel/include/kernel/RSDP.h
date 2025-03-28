@@ -172,6 +172,29 @@ struct FADT
     struct GenericAddressStructure X_GPE1Block;
 } __attribute__ ((packed));;
 
+struct address_structure
+{
+    uint8_t address_space_id;    // 0 - system memory, 1 - system I/O
+    uint8_t register_bit_width;
+    uint8_t register_bit_offset;
+    uint8_t reserved;
+    uint64_t address;
+} __attribute__((packed));
+
+struct HPET{
+    struct ACPISDTHeader header;
+    uint8_t hardware_rev_id;
+    uint8_t comparator_count:5;
+    uint8_t counter_size:1;
+    uint8_t reserved:1;
+    uint8_t legacy_replacement:1;
+    uint16_t pci_vendor_id;
+    struct address_structure address;
+    uint8_t hpet_number;
+    uint16_t minimum_tick;
+    uint8_t page_protection;
+}__attribute((packed));
+
 void setRSDT(struct RSDT* rsdt);
 void setXSDP(struct RSDP_t* xsdp);
 
@@ -179,5 +202,6 @@ struct FADT* find_FADT();
 struct MADT* getMADT();
 struct Parsed_MADT parsed_madt();
 struct PCIe* getPCIe();
+struct HPET* find_HPET();
 
 #endif //RSDP_H

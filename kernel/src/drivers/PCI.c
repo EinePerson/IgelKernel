@@ -21,6 +21,21 @@ static uint16_t pml4_index;
 static struct PCIe_device* devices;
 static uint32_t device_count;
 
+struct PCIe_device * find_PCIe_device(uint8_t class_id, uint8_t sub_class_id) {
+    struct PCIe_device* device;
+    struct PCIe_device* devices = get_PCIe_device_list();
+    uint32_t device_count = get_PCIe_device_count();
+    for(uint32_t i = 0;i < device_count;i++) {
+        void* address = get_PCIe_address(devices + i,0);
+        struct PCIe_Header* header = (struct PCIe_Header*)address;
+        if(header->class_code == class_id && header->subClass == sub_class_id) {
+            return devices + i;
+        }
+    }
+
+    return 0;
+}
+
 void * get_PCIe_address(struct PCIe_device *device,uint8_t function) {
     uint64_t addr = 0xFFFF;
     addr <<= 9;

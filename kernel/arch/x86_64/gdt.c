@@ -1,3 +1,4 @@
+#include <memory.h>
 #include <kernel/gdt.h>
 
 #define GDT_ENTRY_SIZE 8
@@ -102,9 +103,12 @@ void setupGDT(){
     //TODO add Task State Segment
 
     struct GDT TSS_des = {(uint64_t)tssPtr,sizeof(tss) - 1,0x89,0x0};
-	tssPtr->rsp0 = 0xffff800007f660a0;
-	tssPtr->rsp1 = 0xffff800007f660a0;
-	tssPtr->rsp2 = 0xffff800007f660a0;
+	//TODO replace with real stack pointers
+
+	void* stack = alloc_next_page(DEFAULT_KERNEL_PAGE_FLAGS);
+	tssPtr->rsp0 = (unsigned long) stack;
+	tssPtr->rsp1 = (unsigned long) stack;
+	tssPtr->rsp2 = (unsigned long) stack;
     encodeGdtEntry(gdtPtr + GDT_ENTRY_SIZE * 5,TSS_des);
 
     setGdt(GDT_ENTRY_SIZE * GDT_ENTRY_COUNT,(uint64_t) gdtPtr);

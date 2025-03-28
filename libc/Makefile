@@ -29,20 +29,39 @@ CPPFLAGS:=$(CPPFLAGS) $(ARCH_CPPFLAGS)
 LIBK_CFLAGS:=$(LIBK_CFLAGS) $(KERNEL_ARCH_CFLAGS)
 LIBK_CPPFLAGS:=$(LIBK_CPPFLAGS) $(KERNEL_ARCH_CPPFLAGS)
 
-FREEOBJS=\
-$(ARCH_FREEOBJS) \
-stdio/printf.o \
-stdio/putchar.o \
-stdio/puts.o \
-stdlib/abort.o \
-string/memcmp.o \
-string/memcpy.o \
-string/memmove.o \
-string/memset.o \
-string/strlen.o \
-memory/heap.o \
-memory/same_sized_heap.o \
-memory/page_manager.o
+IGFLAGS = -L "-Wall -Wextra -fno-stack-protector -m64 -O0" \
+	--ffreestanding \
+	-I include \
+    --fno-mangle
+
+LIBK_IGFLAGS = $(IGFLAGS) -I ../kernel/include
+
+CFILES = $(shell find -L * -type f -name '*.c' | LC_ALL=C sort)
+IGFILES = $(shell find -L * -type f -name '*.ig' | LC_ALL=C sort)
+
+#$(CFILES) $(IGFILES)
+
+
+#$(addsuffix .o,$(CFILES)) \
+#$(addsuffix .o,$(IGFILES))
+#$(CFILES:.c=.o) $(IGFILES:.ig=.o)
+
+FREEOBJS= $(ARCH_FREEOBJS) \
+$(CFILES:.c=.o) $(IGFILES:.ig=.o)
+#src/stdio/printf.o \
+src/stdio/putchar.o \
+src/stdio/puts.o \
+src/stdlib/abort.o \
+src/string/memcmp.o \
+src/string/memcpy.o \
+src/string/memmove.o \
+src/string/memset.o \
+src/string/strlen.o \
+src/string/strcmp.o \
+src/memory/heap.o \
+src/memory/same_sized_heap.o \
+src/memory/page_manager.o #\
+src/lists/linkedList.o
 
 HOSTEDOBJS=\
 $(ARCH_HOSTEDOBJS) \
@@ -57,7 +76,7 @@ LIBK_OBJS=$(FREEOBJS:.o=.libk.o)
 BINARIES=libk.a
 
 .PHONY: all clean install install-headers install-libs
-.SUFFIXES: .o .libk.o .c .S
+.SUFFIXES: .o .libk.o .c .S .ig
 
 all: $(BINARIES)
 
@@ -74,11 +93,17 @@ libk.a: $(LIBK_OBJS)
 .S.o:
 	$(CC) -MD -c $< -o $@ $(CFLAGS) $(CPPFLAGS)
 
+.ig.o:
+	igc -c $< -o $@  $(IGLAGS)
+
 .c.libk.o:
 	$(CC) -MD -c $< -o $@ -std=gnu11 $(LIBK_CFLAGS) $(LIBK_CPPFLAGS)
 
 .S.libk.o:
 	$(CC) -MD -c $< -o $@ $(LIBK_CFLAGS) $(LIBK_CPPFLAGS)
+
+.ig.libk.o:
+	igc -c $< -o $@ $(LIBK_IGFLAGS)
 
 clean:
 	rm -f $(BINARIES) *.a

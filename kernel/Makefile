@@ -60,6 +60,13 @@ override KCFLAGS += \
     -mno-red-zone \
     -mcmodel=kernel
 
+IGFLAGS = -L "-Wall -Wextra -fno-stack-protector -fno-stack-check -fno-lto -fno-PIC -m64 -march=x86-64 -mno-80387 -mno-mmx -mno-sse -mno-sse2 -mno-red-zone -mcmodel=kernel" \
+	--ffreestanding \
+	-I include \
+    -I ../libc/include \
+    --fno-mangle
+    #-I kernel
+
 # Internal C preprocessor flags that should not be changed by the user.
 override KCPPFLAGS := \
     -I kernel \
@@ -88,12 +95,13 @@ override KLDFLAGS += \
 override CFILES = $(shell cd src && find -L * -type f -name '*.c' | LC_ALL=C sort)
 override ASFILES = $(shell cd src && find -L * -type f -name '*.S' | LC_ALL=C sort)
 override NASMFILES = $(shell cd src && find -L * -type f -name '*.asm' | LC_ALL=C sort)
+override IGFILES = $(shell cd src && find -L * -type f -name '*.ig' | LC_ALL=C sort)
 
 override CFILES += $(shell cd arch && find -L * -type f -name '*.c' | LC_ALL=C sort)
 override ASFILES += $(shell cd arch && find -L * -type f -name '*.S' | LC_ALL=C sort)
 override NASMFILES += $(shell cd arch && find -L * -type f -name '*.asm' | LC_ALL=C sort)
 
-override OBJ := $(addprefix obj/,$(CFILES:.c=.c.o) $(ASFILES:.S=.S.o) $(NASMFILES:.asm=.asm.o))
+override OBJ := $(addprefix obj/,$(CFILES:.c=.c.o) $(ASFILES:.S=.S.o) $(NASMFILES:.asm=.asm.o) $(IGFILES:.ig=.ig.o))
 override HEADER_DEPS := $(addprefix obj/,$(CFILES:.c=.c.d) $(ASFILES:.S=.S.d))
 
 # Default target.
@@ -126,6 +134,11 @@ obj/%.asm.o: src/%.asm Makefile
 	mkdir -p "$$(dirname $@)"
 	nasm $(KNASMFLAGS) $< -o $@
 
+# Compilation rules for *.ig files.
+obj/%.ig.o: src/%.ig Makefile
+	mkdir -p "$$(dirname $@)"
+	igc $(IGFLAGS) -c -o $@ $<
+
 #Arch dependent ones
 # Compilation rules for *.c files.
 obj/%.c.o: arch/%.c Makefile
@@ -136,6 +149,11 @@ obj/%.c.o: arch/%.c Makefile
 obj/%.S.o: arch/%.S Makefile
 	mkdir -p "$$(dirname $@)"
 	$(KCC) $(KCFLAGS) $(KCPPFLAGS) -c $< -o $@
+
+# Compilation rules for *.ig files.
+obj/%.ig.o: arch/%.ig Makefile
+	mkdir -p "$$(dirname $@)"
+	igc $(IGFLAGS) -c -o $@ $<
 
 # Compilation rules for *.asm (nasm) files.
 obj/%.asm.o: arch/%.asm Makefile

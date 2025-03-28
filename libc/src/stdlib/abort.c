@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <kernel.h>
 
-static void hcf(void) {
+
+/*static void hcf(void) {
 	for (;;) {
 		asm ("hlt");
 	}
-}
+}*/
 
 __attribute__((__noreturn__))
 void abort(void) {

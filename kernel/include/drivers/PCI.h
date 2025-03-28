@@ -6,6 +6,7 @@
 #define PCI_H
 
 #include <kernel/RSDP.h>
+#include <stdint.h>
 
 //memory layout for memory mapped PCIe devices (the rest is unsupported)
 
@@ -39,6 +40,8 @@ struct PCIe_Header {
     void* BAR2;
     void* BAR4;
 } __attribute__((packed));
+
+struct PCIe_device* find_PCIe_device(uint8_t class_id,uint8_t sub_class_id);
 
 void* get_PCIe_address(struct PCIe_device* device,uint8_t function);
 

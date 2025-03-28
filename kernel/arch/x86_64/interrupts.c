@@ -6,7 +6,7 @@
 
 #include <kernel/interrupts.h>
 
-#define IDT_MAX_DESCRIPTORS 64
+#define IDT_MAX_DESCRIPTORS 65
 
 __attribute__ ((interrupt))
 void PITI(struct interrupt_frame *frame) {
@@ -97,7 +97,7 @@ void* interrupt_pointers[IDT_MAX_DESCRIPTORS] = {divide_error,debug,NMII,breakP,
     //PIC remaped
     pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,
     //APIC
-    PITI,keyboard_handler,cascade,com2,com1,ltp2,floppy_disk,spurious,cmos,periph,periph,periph,mouse,copu,pATA,sATA};
+    PITI,keyboard_handler,cascade,com2,com1,ltp2,floppy_disk,spurious,cmos,periph,periph,periph,mouse,copu,pATA,sATA,asm_syscall};
 
 typedef struct {
     uint16_t    isr_low;      // The lower 16 bits of the ISR's address

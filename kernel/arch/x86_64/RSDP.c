@@ -42,6 +42,21 @@ struct PCIe * getPCIe() {
     return 0;
 }
 
+struct HPET* find_HPET(){
+    struct RSDT *rsdt = (struct RSDT *) rootRSDT;
+    int entries = (rsdt->h.Length - sizeof(rsdt->h)) / 4;
+
+    for (int i = 0; i < entries; i++)
+    {
+        struct ACPISDTHeader *h = (struct ACPISDTHeader *) ((char*) rsdt->PointerToOtherSDT[i] + PAGE_VIRT_OFFSET);
+        if (!memcmp(h->Signature, "HPET", 4))
+            return (struct HPET*) h;
+    }
+
+    // No HPET found
+    return 0;
+}
+
 struct FADT* find_FADT() {
     struct RSDT *rsdt = (struct RSDT *) rootRSDT;
     int entries = (rsdt->h.Length - sizeof(rsdt->h)) / 4;

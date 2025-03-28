@@ -14,5 +14,9 @@ void terminal_clear();
 void set_text_color(uint32_t color);
 void scroll();
 void scrollOverflow();
+void terminal_nextLine();
+
+void terminal_removeLast(size_t length);
+void terminal_remove(size_t x,size_t y,size_t length);
 
 #endif

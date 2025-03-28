@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <kernel/memory.h>
 #include <memory.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -13,6 +14,16 @@ struct Memory_Virtual_Address disassemble_virtual_address(void* addr) {
     uint64_t pt_index   = (virutal_address >> 12) & 0x1FF;
     struct Memory_Virtual_Address mem = {pml4_index,pdpt_index,pd_index,pt_index};
     return mem;
+}
+
+void* get_virtual_address(struct Memory_Virtual_Address addr) {
+    uint64_t ptr = 0;
+    ptr |= addr.pt << 12;
+    ptr |= addr.pd << 21;
+    ptr |= ((uint64_t) addr.pdpt) << 30;
+    ptr |= ((uint64_t) addr.pml4) << 39;
+    ptr |= ((uint64_t) addr.pml4 >> 8) * 0xFFFF000000000000;
+    return (void*)ptr;
 }
 
 void * map_virtual_address(void *physical_address) {
@@ -95,12 +106,21 @@ void* get_phys_addr(void* virt_addr){
 
     uint64_t pdpt_base = ((uint64_t*)cr3)[pml4_index] & 0xFFFFFFFFFFFFF000;
     uint64_t* pdpt_table = (uint64_t*)(pdpt_base + PAGE_VIRT_OFFSET);
-    uint64_t pd_base = pdpt_table[pdpt_index] & 0xFFFFFFFFFFFFF000;
-    uint64_t* pd_table = (uint64_t*)(pd_base + PAGE_VIRT_OFFSET);
-    uint64_t pt_base = pd_table[pd_index] & 0xFFFFFFFFFFFFF000;
-    uint64_t* pt_table = (uint64_t*)(pt_base + PAGE_VIRT_OFFSET);
-    uint64_t physical_address = pt_table[pt_index];
+    bool pdptEnd = (((uint64_t*)cr3)[pml4_index] & 0x40) == 0x40;
+    uint64_t physical_address = (uint64_t) pdpt_base;
+    if (!pdptEnd) {
+        uint64_t pd_base = pdpt_table[pdpt_index] & 0xFFFFFFFFFFFFF000;
+        uint64_t* pd_table = (uint64_t*)(pd_base + PAGE_VIRT_OFFSET);
+        bool pdEnd = (pdpt_table[pdpt_index] & 0x40) == 0x40;
+        physical_address = (uint64_t) pd_base;
+        if (!pdEnd) {
+            uint64_t pt_base = pd_table[pd_index] & 0xFFFFFFFFFFFFF000;
+            uint64_t* pt_table = (uint64_t*)(pt_base + PAGE_VIRT_OFFSET);
+            physical_address = pt_table[pt_index];
+        }
+    }
 
+    //TODO remove the removing of last bits if address is bigger
     if(physical_address >> 49 & 0x0001) {
         physical_address |= 0xFFFF000000000000;
         physical_address &= 0xFFFFFFFFFFFFF000;
@@ -154,4 +174,77 @@ struct page_existing* get_existens_map(void* cr3,int8_t depth) {
     }
 
     return exs;
+}
+
+/***
+ * finds a memory region with the specifications
+ * @size is the amount of pages(4096 bytes)
+ * @depth is the paging structure depth to search through(currently only 4 is supported)
+ */
+struct Memory_Virtual_Address find_next_free_page_area(uint8_t depth,uint64_t min_size,uint16_t pml4_start,uint16_t pdpt_start,uint16_t pd_start,uint16_t pt_start) {
+    switch (depth) {
+        case 4: {
+            void* cr3 = get_page_pointer();
+            cr3 += PAGE_VIRT_OFFSET;
+            uint64_t current_size;
+            for (uint16_t i = pml4_start;i < 512;i++) {
+                uint64_t pdpt_base = ((uint64_t*)cr3)[i] & 0xFFFFFFFFFFFFF000;
+                uint64_t* pdpt_table = (uint64_t*)(pdpt_base + PAGE_VIRT_OFFSET);
+                if ((((uint64_t*)cr3)[i] & 0x1) == 0) {
+                    current_size += 512 * 512 * 512;
+                    if (current_size >= min_size) {
+                        struct Memory_Virtual_Address mem = {i,0,0,0};
+                        return mem;
+                    }
+                }else {
+                    current_size = 0;
+                }
+                for (uint16_t j = pdpt_start;j < 512;j++) {
+                    if ((pdpt_table[j] & 0x40) == 0x40)continue;
+                    uint64_t pd_base = pdpt_table[j] & 0xFFFFFFFFFFFFF000;
+                    uint64_t* pd_table = (uint64_t*)(pd_base + PAGE_VIRT_OFFSET);
+                    if ((pdpt_table[j] & 0x1) == 0) {
+                        current_size += 512 * 512;
+                        if (current_size >= min_size) {
+                            struct Memory_Virtual_Address mem = {i,j,0,0};
+                            return mem;
+                        }
+                    }else {
+                        current_size = 0;
+                    }
+                    for (uint16_t k = pd_start;k < 512;k++) {
+                        if ((pd_table[k] & 0x40) == 0x40)continue;
+                        uint64_t pt_base = pd_table[k] & 0xFFFFFFFFFFFFF000;
+                        uint64_t* pt_table = (uint64_t*)(pt_base + PAGE_VIRT_OFFSET);
+                        if ((pd_table[k] & 0x1) == 0) {
+                            current_size += 512;
+                            if (current_size >= min_size) {
+                                struct Memory_Virtual_Address mem = {i,j,k,0};
+                                return mem;
+                            }
+                        }else {
+                            current_size = 0;
+                        }
+                        for (uint16_t l = pt_start;l < 512;l++) {
+                            if ((pt_table[l] & 0x1) == 0) {
+                                current_size += 1;
+                                if (current_size >= min_size) {
+                                    struct Memory_Virtual_Address mem = {i,j,k,l};
+                                    return mem;
+                                }
+                            }else {
+                                current_size = 0;
+                            }
+                        }
+                    }
+                }
+            }
+            struct Memory_Virtual_Address mem = {-1,-1,-1,-1};
+            return mem;
+        }
+        default:
+            printf("Only page finding level 4 currently supported\n");
+            abort();
+    }
+
 }

@@ -69,7 +69,10 @@ static uint8_t first_type;
 static bool second_connected = false;
 static uint8_t second_type;
 
-void init_keyboard() {
+void (*handler)(bool,int);
+
+void init_keyboard(void (*_handler)(bool,int)) {
+    handler = _handler;
     /*wait();
     send(0xAD,0,0);
     send(0xA7,0,0);
@@ -163,6 +166,9 @@ void init_keyboard() {
     //resp = send_second(0xF0,&scan_code_set,1);
 }
 
+void set_keyboard_handler(void (*_handler)(bool, int)){
+    handler = _handler;
+}
 
 uint8_t send(unsigned char cmd,unsigned char *data, uint8_t data_length) {
     unsigned char response = 0xFE;
@@ -259,12 +265,17 @@ void keyboard_handler(struct interrupt_frame *frame) {
     char code = inb(DATA_PORT) & 0x7F;
     char pressed = inb(DATA_PORT) & 0x80;
 
-    if (pressed == 0 && code != 42){
+    handler(pressed == 0,code);
+    /*if (pressed == 0 && code != 42){
         printf("%c", lowercase[code]);
-    }
+    }*/
 
 
     end_of_interrupt();
+}
+
+char char_ofCode(int code){
+    return lowercase[code];
 }
 
 void wait() {

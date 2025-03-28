@@ -1,12 +1,14 @@
 #pragma once
 
+#include <stdint.h>
+
 struct interrupt_frame
 {
-    uint16_t ip;
-    uint16_t cs;
-    uint16_t flags;
-    uint16_t sp;
-    uint16_t ss;
+    uint64_t ip;
+    uint64_t cs;
+    uint64_t flags;
+    void* sp;
+    uint64_t ss;
 };
 
 void idt_init();
@@ -51,3 +53,7 @@ void pATA(struct interrupt_frame *frame);
 void sATA(struct interrupt_frame *frame);
 
 void pic_remap(struct interrupt_frame *frame);
+
+extern void asm_syscall(struct interrupt_frame *frame);
+
+void syscall_handler(struct interrupt_frame *frame);
