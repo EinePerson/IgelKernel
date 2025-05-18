@@ -10,6 +10,11 @@
 
 
 /**
+ * CLARIFICATION,as most of the pages are expanded from 0 a tree would have to be constantly rebalanced which seems kind of wasteful to me so that only the left one is used and this is effectively a LinkedList which soon probably will
+ * become an ArrayList
+ */
+
+/**
  * these 4 structs create a search tree to map a virtual to a physical address
  * the first (uint16_t) is the index,the next two are the child elements
  * the 4th entry is the pointer to the next lower structer if the index matches
@@ -18,7 +23,7 @@
 struct pt_tree {
     uint16_t pt;
     struct pt_tree *left;
-    struct pt_tree *right;
+    //struct pt_tree *right;
     void* base;
 };
 
@@ -31,7 +36,7 @@ struct pt_tree {
 struct pd_tree {
     uint16_t pd;
     struct pd_tree* left;
-    struct pd_tree* right;
+    //struct pd_tree* right;
     struct pt_tree *next;
     bool page_size;
 };
@@ -45,7 +50,7 @@ struct pd_tree {
 struct pdpt_tree {
     uint16_t pdpt;
     struct pdpt_tree *left;
-    struct pdpt_tree *right;
+    //struct pdpt_tree *right;
     struct pd_tree* next;
     bool page_size;
 };
@@ -59,7 +64,7 @@ struct pdpt_tree {
 struct pml4_tree {
     uint16_t pml4;
     struct pml4_tree *left;
-    struct pml4_tree *right;
+    //struct pml4_tree *right;
     struct pdpt_tree* next;
 };
 
@@ -69,7 +74,7 @@ struct pml4_tree {
 struct cr3_array {
     uint64_t cr3;
     struct cr3_array* left;
-    struct cr3_array* right;
+    //struct cr3_array* right;
     struct pml4_tree* next;
 };
 
@@ -81,8 +86,7 @@ struct cr3_array {
  */
 struct cr3_array* getRoot(uint64_t cr3,struct cr3_array* current) {
     if (cr3 == current->cr3)return current;
-    if (cr3 < current->cr3)return getRoot(cr3, current->right);
-    if (cr3 > current->cr3)return getRoot(cr3, current->left);
+    return getRoot(cr3, current->left);
 }
 
 /**
@@ -93,8 +97,7 @@ struct cr3_array* getRoot(uint64_t cr3,struct cr3_array* current) {
  */
 struct pml4_tree* getPML4(uint16_t pml4_index,struct pml4_tree* current) {
     if (pml4_index == current->pml4)return current;
-    if (pml4_index < current->pml4)return getPML4(pml4_index, current->right);
-    if (pml4_index > current->pml4)return getPML4(pml4_index, current->left);
+    return getPML4(pml4_index, current->left);
 }
 
 /**
@@ -105,8 +108,7 @@ struct pml4_tree* getPML4(uint16_t pml4_index,struct pml4_tree* current) {
  */
 struct pdpt_tree* getPDPT(uint16_t pdpt_index, struct pdpt_tree* current) {
     if (pdpt_index == current->pdpt) return current;
-    if (pdpt_index < current->pdpt) return getPDPT(pdpt_index, current->right);
-    if (pdpt_index > current->pdpt) return getPDPT(pdpt_index, current->left);
+    return getPDPT(pdpt_index, current->left);
 }
 
 /**
@@ -117,8 +119,7 @@ struct pdpt_tree* getPDPT(uint16_t pdpt_index, struct pdpt_tree* current) {
  */
 struct pd_tree* getPD(uint16_t pd_index, struct pd_tree* current) {
     if (pd_index == current->pd) return current;
-    if (pd_index < current->pd) return getPD(pd_index, current->right);
-    if (pd_index > current->pd) return getPD(pd_index, current->left);
+    return getPD(pd_index, current->left);
 }
 
 /**
@@ -129,8 +130,7 @@ struct pd_tree* getPD(uint16_t pd_index, struct pd_tree* current) {
  */
 struct pt_tree* getBase(uint16_t pt_index,struct pt_tree* current) {
     if (pt_index == current->pt)return current;
-    if (pt_index < current->pt)return getBase(pt_index, current->right);
-    if (pt_index > current->pt)return getBase(pt_index, current->left);
+    return getBase(pt_index, current->left);
 }
 
 ///this is the root of the full tree
@@ -207,12 +207,10 @@ void addCR3(uint64_t cr3) {
                 abort();
             }
             prev = curr;
-            if (cr3 < curr->cr3)curr = curr->right;
-            else if (cr3 > curr->cr3)curr = curr->left;
+            curr = curr->left;
         }
 
-        if (cr3 < prev->cr3)prev->right = arr;
-        else if (cr3 > prev->cr3)prev->left = arr;
+        prev->left = arr;
     }
 }
 
@@ -238,12 +236,10 @@ void addPML4(uint64_t cr3,uint16_t pml4_index) {
             printf("PML4 present");
             abort();
         }
-        if (pml4_index < curr->pml4)curr = curr->right;
-        else if (pml4_index > curr->pml4)curr = curr->left;
+        curr = curr->left;
     }
 
-    if (pml4_index < prev->pml4)prev->right = pml4;
-    else if (pml4_index > prev->pml4)prev->left = pml4;
+    prev->left = pml4;
 }
 
 void addPdpt(uint64_t cr3,uint16_t pml4_index,uint16_t pdpt_index) {
@@ -270,12 +266,10 @@ void addPdpt(uint64_t cr3,uint16_t pml4_index,uint16_t pdpt_index) {
             printf("PDPT present");
             abort();
         }
-        if (pdpt_index < curr->pdpt)curr = curr->right;
-        else if (pdpt_index > curr->pdpt)curr = curr->left;
+        curr = curr->left;
     }
 
-    if (pdpt_index < prev->pdpt)prev->right = pdpt;
-    else if (pdpt_index > prev->pdpt)prev->left = pdpt;
+    prev->left = pdpt;
 }
 
 void addPdptPage(uint64_t cr3,uint16_t pml4_index,uint16_t pdpt_index,void* base) {
@@ -302,12 +296,10 @@ void addPdptPage(uint64_t cr3,uint16_t pml4_index,uint16_t pdpt_index,void* base
             printf("PDPT present");
             abort();
         }
-        if (pdpt_index < curr->pdpt)curr = curr->right;
-        else if (pdpt_index > curr->pdpt)curr = curr->left;
+        curr = curr->left;
     }
 
-    if (pdpt_index < prev->pdpt)prev->right = pdpt;
-    else if (pdpt_index > prev->pdpt)prev->left = pdpt;
+    prev->left = pdpt;
 }
 
 void addPd(uint64_t cr3,uint16_t pml4_index,uint16_t pdpt_index,uint16_t pd_index) {
@@ -341,12 +333,10 @@ void addPd(uint64_t cr3,uint16_t pml4_index,uint16_t pdpt_index,uint16_t pd_inde
             printf("PD present");
             abort();
         }
-        if (pd_index < curr->pd)curr = curr->right;
-        else if (pd_index > curr->pd)curr = curr->left;
+        curr = curr->left;
     }
 
-    if (pd_index < prev->pd)prev->right = pd;
-    else if (pd_index > prev->pd)prev->left = pd;
+    prev->left = pd;
 }
 
 void addPdPage(uint64_t cr3,uint16_t pml4_index,uint16_t pdpt_index,uint16_t pd_index,void* base) {
@@ -380,12 +370,10 @@ void addPdPage(uint64_t cr3,uint16_t pml4_index,uint16_t pdpt_index,uint16_t pd_
             printf("PD present");
             abort();
         }
-        if (pd_index < curr->pd)curr = curr->right;
-        else if (pd_index > curr->pd)curr = curr->left;
+        curr = curr->left;
     }
 
-    if (pd_index < prev->pd)prev->right = pd;
-    else if (pd_index > prev->pd)prev->left = pd;
+    prev->left = pd;
 }
 
 void addPt(uint64_t cr3,uint16_t pml4_index,uint16_t pdpt_index,uint16_t pd_index,uint16_t pt_index,void* base) {
@@ -425,12 +413,10 @@ void addPt(uint64_t cr3,uint16_t pml4_index,uint16_t pdpt_index,uint16_t pd_inde
             printf("PT present");
             abort();
         }
-        if (pt_index < curr->pt)curr = curr->right;
-        else if (pt_index > curr->pt)curr = curr->left;
+        curr = curr->left;
     }
 
-    if (pt_index < prev->pt)prev->right = pt;
-    else if (pt_index > prev->pt)prev->left = pt;
+    prev->left = pt;
 }
 
 void init_translator() {

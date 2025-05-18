@@ -1,0 +1,286 @@
+//
+// Created by igel on 29.03.25.
+//
+
+#include <memory.h>
+#include <stdio.h>
+
+struct space_memory_translator {
+    uint32_t bucket_count;
+    uint32_t entry_count;
+    struct space_memory_translator_pair* cached_value;
+    struct space_memory_translator_bucket* values;
+};
+
+void create_address_translator_impl(struct space_memory_translator* translator,uint32_t bucket_count) {
+    translator->entry_count = 0;
+    translator->bucket_count = bucket_count;
+    translator->values = malloc(sizeof(struct space_memory_translator_bucket) * translator->bucket_count);
+    translator->cached_value = 0;
+}
+
+struct space_memory_translator* create_address_translator(){
+    struct space_memory_translator* translator = malloc(sizeof(struct space_memory_translator));
+    create_address_translator_impl(translator,2048);
+    return translator;
+}
+
+void insert_element(struct space_memory_translator* translator,struct space_memory_translator_pair* new_pair) {
+    uint64_t virt_id = (((uint64_t) new_pair->virt_addr) >> 12) % translator->bucket_count;
+    uint64_t phys_id = (((uint64_t) new_pair->phys_addr) >> 12) % translator->bucket_count;
+
+    struct space_memory_translator_bucket bucket = translator->values[virt_id];
+    struct space_memory_translator_pair* prev = 0;
+    struct space_memory_translator_pair* pair = bucket.first;
+
+    if (bucket.length == 0) {
+        bucket.first = new_pair;
+    }else {
+        bool pres = false;
+        for (int i = 0; i < bucket.length;i++) {
+            if (pair->virt_addr == (uint64_t) new_pair->virt_addr) {
+                pres = true;
+                struct space_memory_translator_pair* next = pair->next;
+                if (i == 0) bucket.first = new_pair;
+                else prev->next = new_pair;
+
+                new_pair->next = next;
+                free(pair);
+                break;
+            }
+            prev = pair;
+            pair = pair->next;
+        }
+        if (!pres)prev->next = new_pair;
+    }
+
+
+    bucket = translator->values[phys_id];
+    prev = 0;
+    pair = bucket.first;
+
+    if (virt_id == phys_id)return;
+
+    if (bucket.length == 0) {
+        bucket.first = new_pair;
+    }else {
+        bool pres = false;
+        for (int i = 0; i < bucket.length;i++) {
+            if (pair->phys_addr == (uint64_t) new_pair->phys_addr) {
+                pres = true;
+                struct space_memory_translator_pair* next = pair->next;
+                if (i == 0) bucket.first = new_pair;
+                else prev->next = new_pair;
+
+                new_pair->next = next;
+                break;
+            }
+            prev = pair;
+            pair = pair->next;
+        }
+        if (!pres)prev->next = new_pair;
+    }
+}
+
+void rehash(struct space_memory_translator* translator) {
+    struct space_memory_translator_bucket* old_values = translator->values;
+    uint32_t old_bucket_count = translator->bucket_count;
+    struct space_memory_translator_bucket* new_values = malloc(sizeof(struct space_memory_translator_bucket) * translator->bucket_count * 2);
+    translator->bucket_count *= 2;
+    translator->values = new_values;
+
+    for (int i = 0; i < old_bucket_count; i++) {
+        if (old_values[i].length == 0)continue;
+        struct space_memory_translator_pair* pair = old_values[i].first;
+        for (int j = 0;j < old_values[i].length;j++) {
+            insert_element(translator,pair);
+            pair = pair->next;
+        }
+    }
+
+    free(old_values);
+}
+
+void addEntry(struct space_memory_translator* translator,void* virtual_address,void* physical_address) {
+    double load = ((double) translator->entry_count) / translator->bucket_count;
+    if (load > 1.0) {
+        rehash(translator);
+    }
+
+    struct space_memory_translator_pair* new_pair = malloc(sizeof(struct space_memory_translator_pair));
+    new_pair->next = 0;
+    new_pair->phys_addr = (uint64_t) physical_address & ~0xFFF;
+    new_pair->virt_addr = (uint64_t) virtual_address & ~ 0xFFF;
+    insert_element(translator,new_pair);
+    translator->cached_value = new_pair;
+}
+
+bool containsPhysicalAddress(struct space_memory_translator* translator,void* phys) {
+    uint64_t phys_id = (((uint64_t) phys) >> 12) % translator->bucket_count;
+    uint64_t address = ((uint64_t) phys) & ~ 0xFFF;
+    if (translator->cached_value->phys_addr == address)return true;
+    struct space_memory_translator_bucket bucket = translator->values[phys_id];
+    if (bucket.length == 0)return false;
+    struct space_memory_translator_pair* pair = bucket.first;
+    for (int i = 0; i < bucket.length - 1; i++) {
+        if (pair->phys_addr == address) {
+            translator->cached_value = pair;
+            return true;
+        }
+        pair = pair->next;
+    }
+    return false;
+}
+
+bool containsVirtualAddress(struct space_memory_translator* translator,void* virt) {
+    uint64_t virt_id = (((uint64_t) virt) >> 12) % translator->bucket_count;
+    uint64_t address = ((uint64_t) virt) & ~ 0xFFF;
+    if (translator->cached_value->virt_addr == address)return true;
+    struct space_memory_translator_bucket bucket = translator->values[virt_id];
+    if (bucket.length == 0)return false;
+    struct space_memory_translator_pair* pair = bucket.first;
+    for (int i = 0; i < bucket.length - 1; i++) {
+        if (pair->virt_addr == address) {
+            translator->cached_value = pair;
+            return true;
+        }
+        pair = pair->next;
+    }
+    return false;
+}
+
+struct space_memory_translator_pair* getPairVirt(struct space_memory_translator* translator,void* virt) {
+    uint64_t phys_id = (((uint64_t) virt) >> 12) % translator->bucket_count;
+    uint64_t address = ((uint64_t) virt) & ~ 0xFFF;
+    if (translator->cached_value->virt_addr == address)return translator->cached_value;
+    struct space_memory_translator_bucket bucket = translator->values[phys_id];
+    if (bucket.length == 0)return 0;
+    struct space_memory_translator_pair* pair = bucket.first;
+    for (int i = 0; i < bucket.length - 1; i++) {
+        if (pair->virt_addr == address) {
+            translator->cached_value = pair;
+            return translator->cached_value;
+        }
+        pair = pair->next;
+    }
+    return 0;
+}
+
+struct space_memory_translator_pair* getPairPhys(struct space_memory_translator* translator,void* phys) {
+    uint64_t phys_id = (((uint64_t) phys) >> 12) % translator->bucket_count;
+    uint64_t address = ((uint64_t) phys) & ~ 0xFFF;
+    if (translator->cached_value->phys_addr == address)return translator->cached_value;
+    struct space_memory_translator_bucket bucket = translator->values[phys_id];
+    if (bucket.length == 0)return 0;
+    struct space_memory_translator_pair* pair = bucket.first;
+    for (int i = 0; i < bucket.length - 1; i++) {
+        if (pair->phys_addr == address) {
+            translator->cached_value = pair;
+            return translator->cached_value;
+        }
+        pair = pair->next;
+    }
+    return 0;
+}
+
+void* getByPhysicalAddress(struct space_memory_translator* translator,void* physical_address) {
+    struct space_memory_translator_pair* pair = getPairPhys(translator,physical_address);
+    if (pair == 0)return 0;
+    return (void*) (pair->virt_addr | ((uint64_t) physical_address & 0xFFF));
+}
+
+void* getByVirtualAddress(struct space_memory_translator* translator,void* virtual_address) {
+    struct space_memory_translator_pair* pair = getPairVirt(translator,virtual_address);
+    if (pair == 0)return 0;
+    return (void*) (pair->phys_addr | ((uint64_t) virtual_address & 0xFFF));
+}
+
+void removeEntryByVirtualAddress(struct space_memory_translator* translator,void* virt) {
+    uint64_t virt_id = (((uint64_t) virt) >> 12) % translator->bucket_count;
+    uint64_t address = ((uint64_t) virt) & ~ 0xFFF;
+
+    struct space_memory_translator_pair* delete_pair = 0;
+
+    if (translator->cached_value->virt_addr == address)translator->cached_value = 0;
+    struct space_memory_translator_bucket bucket = translator->values[virt_id];
+
+    if (bucket.length == 0)return;
+    struct space_memory_translator_pair* pair = bucket.first;
+    if (pair->virt_addr == address) {
+        bucket.first = pair->next;
+    }else {
+        struct space_memory_translator_pair* prev = 0;
+        for (int i = 0; i < bucket.length - 1; i++) {
+            prev = pair;
+            pair = pair->next;
+            if (pair->virt_addr == address) {
+                delete_pair = pair;
+                prev->next = pair->next;
+            }
+        }
+    }
+
+    if (delete_pair == 0)return;
+
+    uint64_t phys_id = (((uint64_t) delete_pair->phys_addr) >> 12) % translator->bucket_count;
+    bucket = translator->values[phys_id];
+    address = delete_pair->phys_addr;
+    pair = bucket.first;
+    if (pair->phys_addr == address) {
+        bucket.first = pair->next;
+    }else {
+        struct space_memory_translator_pair* prev = 0;
+        for (int i = 0; i < bucket.length - 1; i++) {
+            prev = pair;
+            pair = pair->next;
+            if (pair->phys_addr == address) {
+                prev->next = pair->next;
+            }
+        }
+    }
+}
+
+void removeEntryByPhysicalAddress(struct space_memory_translator* translator,void* phys) {
+    uint64_t virt_id = (((uint64_t) phys) >> 12) % translator->bucket_count;
+    uint64_t address = ((uint64_t) phys) & ~ 0xFFF;
+
+    struct space_memory_translator_pair* delete_pair = 0;
+
+    if (translator->cached_value->phys_addr == address)translator->cached_value = 0;
+    struct space_memory_translator_bucket bucket = translator->values[virt_id];
+
+    if (bucket.length == 0)return;
+    struct space_memory_translator_pair* pair = bucket.first;
+    if (pair->phys_addr == address) {
+        bucket.first = pair->next;
+    }else {
+        struct space_memory_translator_pair* prev = 0;
+        for (int i = 0; i < bucket.length - 1; i++) {
+            prev = pair;
+            pair = pair->next;
+            if (pair->phys_addr == address) {
+                delete_pair = pair;
+                prev->next = pair->next;
+            }
+        }
+    }
+
+    if (delete_pair == 0)return;
+
+    uint64_t phys_id = (((uint64_t) delete_pair->virt_addr) >> 12) % translator->bucket_count;
+    bucket = translator->values[phys_id];
+    address = delete_pair->virt_addr;
+    pair = bucket.first;
+    if (pair->virt_addr == address) {
+        bucket.first = pair->next;
+    }else {
+        struct space_memory_translator_pair* prev = 0;
+        for (int i = 0; i < bucket.length - 1; i++) {
+            prev = pair;
+            pair = pair->next;
+            if (pair->virt_addr == address) {
+                prev->next = pair->next;
+            }
+        }
+    }
+}

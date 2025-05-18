@@ -1,0 +1,2 @@
+due to 0 being a valid address it is not feasible to use such as return type for "not found"/"invalid" thus 0x7FFFFFFFFFFFFFFF shall be used as the most significant bits which are unused are the same as the most significant used bit this address is not valid
+for the same reason the number 0xBFFFFFFFFFFFFFFF shall be the returned address when an address should be returned but due to paging the page size bit of a previous paging structure is set to indicate that there is no further traversal possible

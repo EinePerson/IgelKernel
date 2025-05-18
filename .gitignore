@@ -1,7 +1,9 @@
 *.iso
 *.o
+*.sym
 
 isodir
 sysroot
 iso_root
 limine
+kernel/bin

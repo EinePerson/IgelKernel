@@ -10,6 +10,10 @@
 #define PAGE_VIRT_OFFSET 0xffff800000000000//This is the offset of the physical address to the virtual one in bootloader reclaimable memory
 #define MEMORY_MAPPED_IO_FLAGS 0b11011//these are the page flags for memory mapped IO devices
 
+#define MEMORY_INVALID_RETURN 0x3FFC000000000000
+#define MEMORY_END_OF_TRAVERSAL_RETURN 0x1FFC000000000000
+#define MEMORY_ALREADY_PRESENT_RETURN 0x2FFC000000000000
+
 struct Memory_Virtual_Address {
     uint16_t pml4;
     uint16_t pdpt;

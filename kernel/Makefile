@@ -100,6 +100,7 @@ override IGFILES = $(shell cd src && find -L * -type f -name '*.ig' | LC_ALL=C s
 override CFILES += $(shell cd arch && find -L * -type f -name '*.c' | LC_ALL=C sort)
 override ASFILES += $(shell cd arch && find -L * -type f -name '*.S' | LC_ALL=C sort)
 override NASMFILES += $(shell cd arch && find -L * -type f -name '*.asm' | LC_ALL=C sort)
+override IGFILES += $(shell cd arch && find -L * -type f -name '*.ig' | LC_ALL=C sort)
 
 override OBJ := $(addprefix obj/,$(CFILES:.c=.c.o) $(ASFILES:.S=.S.o) $(NASMFILES:.asm=.asm.o) $(IGFILES:.ig=.ig.o))
 override HEADER_DEPS := $(addprefix obj/,$(CFILES:.c=.c.d) $(ASFILES:.S=.S.d))

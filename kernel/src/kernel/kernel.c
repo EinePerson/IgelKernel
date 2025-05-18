@@ -105,9 +105,15 @@ void* map_page_APIC(struct Parsed_MADT madt) {
         }
     }
 
-    uint64_t offset = address_request.response->virtual_base - address_request.response->physical_base;
-    uint8_t flags = 0b11011;
-    uint64_t virt = 0xFFFF;
+    if((madt.IOAPIC_addr & 0xFFFFFFFFFFFF000) != madt.IOAPIC_addr) {
+        printf("IOAPIC address unaligned");
+        hcf();
+    }
+
+    //uint64_t offset = address_request.response->virtual_base - address_request.response->physical_base;
+    uint8_t flags = PAGING_CACHE_DISABLED_FLAG | PAGING_WRITE_THROUGH_FLAG | PAGING_WRITE_FLAG | PAGING_PRESENT_FLAG;
+    return  map_next_to((void*) madt.IOAPIC_addr,flags);
+    /*uint64_t virt = 0xFFFF;
     virt <<= 9;
     virt += pml4;
     virt <<= 9;
@@ -125,25 +131,22 @@ void* map_page_APIC(struct Parsed_MADT madt) {
     void* pt = malloc_same(4096);
     ((uint64_t**) pd)[511] = (uint64_t*) ((uint64_t) ((uint8_t*) pt - offset) | flags);
     virt += 511;
-    virt <<= 9;
+    virt <<= 9;*/
 
     /*if((madt.lapic_addr & 0xFFFFFFFFFFFF000) != madt.lapic_addr) {
         printf("LAPIC address unaligned");
         hcf();
     }*/
 
-    if((madt.IOAPIC_addr & 0xFFFFFFFFFFFF000) != madt.IOAPIC_addr) {
-        printf("IOAPIC address unaligned");
-        hcf();
-    }
+
 
     //((uint64_t**) pt)[1] = (uint64_t*) (madt.lapic_addr | flags);
 
-    ((uint64_t**) pt)[0] = (uint64_t*) (madt.IOAPIC_addr | flags);
+    /*((uint64_t**) pt)[0] = (uint64_t*) (madt.IOAPIC_addr | flags);
 
     virt <<= 12;
 
-    return (void*) virt;
+    return (void*) virt;*/
 }
 
 void pic_disable(void) {
@@ -207,6 +210,7 @@ void kmain(void) {
     }
 
     if(smp_request.response == 0 || (smp_request.response != 0 && (smp_request.response->flags & LIMINE_SMP_X2APIC) != 1)) {
+        //TODO uncomment
         hcf();
     }
 
@@ -234,21 +238,18 @@ void kmain(void) {
     //video_init(framebuffer);
     printf("%d:%d:%d\n",framebuffer_request.response->framebuffer_count,framebuffer->width,framebuffer->height);
 
-
-
     struct process* pr_ptr = &kernel_process;
     kernel_process.pid = 1;
     kernel_process.superviser = true;
     kernel_process.pml4 = get_page_pointer() + PAGE_VIRT_OFFSET;
-    kernel_process.pml4_entry_free = 255;
+    kernel_process.pml4_entry_free = 256;
     set_current_process(pr_ptr);
 
 
     void* heap_ptr = heap;
     init_heap(heap_ptr,HEAP_SIZE);
 
-    init_translator();
-    init_page(memmap_request.response);
+    init_page(memmap_request.response,address_request.response);
 
     setupGDT();
     idt_init();
@@ -271,8 +272,8 @@ void kmain(void) {
 
     struct FADT* fadt = find_FADT();
     struct Parsed_MADT parsed = parsed_madt();
-    PCIe_init();
-    usb_init();
+    //PCIe_init();
+    //usb_init();
     void* apic_table = map_page_APIC(parsed);
     write_msr(0x80F,read_msr(0x80F) | 0x1FF);//Set the Spurious Interrupt Vector Register bit 8 to start receiving interrupts
 
@@ -298,7 +299,7 @@ void kmain(void) {
     print_dir();
 
     //asm(".intel_syntax noprefix");
-    asm("int $0x40");
+    //asm("int $0x40");
 
     while (true){}
     hcf();

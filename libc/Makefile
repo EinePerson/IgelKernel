@@ -15,7 +15,7 @@ EXEC_PREFIX?=$(PREFIX)
 INCLUDEDIR?=$(PREFIX)/include
 LIBDIR?=$(EXEC_PREFIX)/lib
 
-CFLAGS:=$(CFLAGS) -ffreestanding -Wall -Wextra -m64 -fno-stack-protector -O0
+CFLAGS:=$(CFLAGS) -ffreestanding -Wall -Wextra -m64 -fno-stack-protector
 CPPFLAGS:=$(CPPFLAGS) -D__is_libc -Iinclude -O0
 LIBK_CFLAGS:=$(CFLAGS) -I../kernel/include
 LIBK_CPPFLAGS:=$(CPPFLAGS) -D__is_libk

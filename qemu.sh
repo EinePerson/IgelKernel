@@ -1,9 +1,11 @@
 #!/bin/sh
 
 qemu-system-x86_64 -s -S -cdrom image.iso \
- -d int,cpu_reset \
+ -k de -no-reboot\
  -monitor stdio \
- -cpu host -enable-kvm -smp 2 -machine type=q35 \
- -device qemu-xhci -device ahci,id=ahci -m 4G #\
+ -smp 2 -machine type=q35 \
+ -device qemu-xhci -device ahci,id=ahci -m 4G \
+ -enable-kvm -cpu host #\
  #-D qemu-memory-tlb.log \
  #-drive file=drive.qcow2,if=none,id=disk0,format=qcow2 -device ide-hd,drive=disk0,bus=ahci.0
+ # -d int,cpu_reset

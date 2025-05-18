@@ -7,6 +7,7 @@
 
 #include <memory.h>
 #include <string.h>
+#include <kernel/memory.h>
 
 static void* mem;
 static uint8_t* mem_used;
@@ -27,6 +28,7 @@ void* malloc_same() {
     void* ret = mem + next_free * obj_size;
     mem_used[next_free / 8] |= 1 << next_free % 8;
     find_next_free_same();
+    memsetLong(ret,MEMORY_INVALID_RETURN,obj_size);
     return ret;
 }
 
