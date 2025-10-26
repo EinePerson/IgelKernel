@@ -86,7 +86,54 @@ int printf(const char* restrict format, ...) {
                 j--;
             }
             memset(buf,0,32);
-        } else {
+        }else if (*format == 'l'){
+            format++;
+            long i = (long) va_arg(parameters, long /* char promotes to long */);
+            if(i < 0) {
+                putchar('-');
+                written++;
+            }
+            if (!maxrem) {
+                // TODO: Set errno to EOVERFLOW.
+                return -1;
+            }
+            int j = 0;
+            while (i != 0){
+                buf[j] = (i % 10) + '0';
+                i /= 10;
+                j++;
+            }
+            written += j;
+            while (j > 0){
+                putchar(buf[j - 1]);
+                j--;
+            }
+            memset(buf,0,32);
+        }else if (*format == 'm'){
+            format++;
+            unsigned long i = (unsigned long) va_arg(parameters, unsigned long /* char promotes to long */);
+            if (!maxrem) {
+                // TODO: Set errno to EOVERFLOW.
+                return -1;
+            }
+            int j = 0;
+            while (i != 0){
+                char val = i % 16;
+                if (val < 10) val += '0';
+                else val += 'A' - 10;
+                buf[j] = val;
+                i /= 16;
+                j++;
+            }
+            written += j;
+            putchar('0');
+            putchar('x');
+            while (j > 0){
+                putchar(buf[j - 1]);
+                j--;
+            }
+            memset(buf,0,32);
+        }else {
             format = format_begun_at;
             size_t len = strlen(format);
             if (maxrem < len) {

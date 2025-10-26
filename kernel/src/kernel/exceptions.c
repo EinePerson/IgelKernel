@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include <stdio.h>
+#include <kernel/interrupts.h>
 
 /*struct interrupt_frame
 {
@@ -43,9 +44,8 @@ void NMII(struct interrupt_frame *frame){
     hcf();
 }
 
-__attribute__ ((interrupt))
 void breakP(struct interrupt_frame *frame){
-    printf("breakP");
+    return;
 }
 
 __attribute__ ((interrupt))
@@ -55,7 +55,7 @@ void overflow(struct interrupt_frame *frame){
 }
 
 __attribute__ ((interrupt))
-void bound(struct interrupt_frame *frame){
+void boundRange(struct interrupt_frame *frame){
     printf("Bound range exceded");
     hcf();
 }

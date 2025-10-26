@@ -266,3 +266,7 @@ struct Memory_Virtual_Address find_next_free_page_area(uint8_t depth,uint64_t mi
     }
 
 }
+
+struct Memory_Virtual_Address convertToAddr(uint64_t int_addr){
+    return (struct Memory_Virtual_Address){(int_addr >> 39) & 0x1FF,(int_addr >> 30) & 0x1FF,(int_addr >> 21) & 0x1FF,(int_addr >> 12) & 0x1FF};
+}

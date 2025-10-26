@@ -145,6 +145,8 @@ struct Memory_Virtual_Address get_current_process_address();
 
 void* alloc_physical_page_range(uint64_t length);
 
+void* alloc_next_free_page_directory();
+
 //void init_translator();
 
 //void* get_physical_address(void* virt,uint64_t cr3);
@@ -167,7 +169,7 @@ struct address_space_translator{
     struct address_space_translator_entry* cache;
 };
 
-void translator_init_kernel_space(struct address_space_translator* trans);
+void translator_init_kernel_space(struct address_space_translator* trans,uint64_t stack_offset,uint64_t instruction_offset);
 
 void translator_remove_entry_physical(struct address_space_translator* trans,void* phys,uint64_t length);
 void translator_remove_entry_virtual(struct address_space_translator* trans,void* virt,uint64_t length);

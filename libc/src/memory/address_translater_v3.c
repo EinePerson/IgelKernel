@@ -1,12 +1,8 @@
 //
 // Created by igel on 31.03.25.
 //Consider making the flags not part of the entry to avoid fragmentation and instead page walk to get flags,this also saves time when changing entries as one does not have to explicitly change the flags, the downside is that flag lookups are slower
-
-
-
-
-#include <stdint.h>
 #include <memory.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <kernel/memory.h>
@@ -230,84 +226,13 @@ bool translator_contains_virtual(struct address_space_translator* trans,void* vi
     return false;
 }
 
-/*uint16_t translator_get_flags_physically(struct address_space_translator *trans, void *phys,uint8_t index) {
-    if (index > 3) {
-        printf("Address translator index out of range\n");
-        abort();
-    }
-    uint64_t physical_address = ((uint64_t) phys) & ~0xFFF;
-
-    if (trans->cache->physical_address == physical_address) {
-        uint64_t flags = trans->cache->all_flags;
-        return ((uint16_t*) &flags)[index];
-    }
-
-    struct address_space_translator_entry* entry = trans->first;
-    for (int i = 0; i < trans->size - 1; i++) {
-        if (entry->physical_address <= physical_address && entry->physical_address + entry->length >= physical_address) {
-            trans->cache = entry;
-            uint64_t flags = trans->cache->all_flags;
-            return ((uint16_t*) &flags)[index];
-        }
-        entry = entry->next;
-    }
-
-    return 0;
-}*/
-
-/*uint64_t translator_get_all_flags_virtually(struct address_space_translator *trans, void *virt) {
-    uint64_t virtual_address = ((uint64_t) virt) & ~0xFFF;
-
-    if (trans->cache->virtual_address == virtual_address) {
-        uint64_t flags = trans->cache->all_flags;
-        return flags;
-    }
-
-    struct address_space_translator_entry* entry = trans->first;
-    for (int i = 0; i < trans->size - 1; i++) {
-        if (entry->virtual_address <= virtual_address && entry->virtual_address + entry->length >= virtual_address) {
-            trans->cache = entry;
-            uint64_t flags = trans->cache->all_flags;
-            return flags;
-        }
-        entry = entry->next;
-    }
-
-    return 0;
-}*/
-
-/*uint16_t translator_get_flags_virtually(struct address_space_translator *trans, void *virt,uint8_t index) {
-    if (index > 3) {
-        printf("Address translator index out of range\n");
-        abort();
-    }
-    uint64_t virtual_address = ((uint64_t) virt) & ~0xFFF;
-
-    if (trans->cache->virtual_address == virtual_address) {
-        uint64_t flags = trans->cache->all_flags;
-        return ((uint16_t*) &flags)[index];
-    }
-
-    struct address_space_translator_entry* entry = trans->first;
-    for (int i = 0; i < trans->size - 1; i++) {
-        if (entry->virtual_address <= virtual_address && entry->virtual_address + entry->length >= virtual_address) {
-            trans->cache = entry;
-            uint64_t flags = trans->cache->all_flags;
-            return ((uint16_t*) &flags)[index];
-        }
-        entry = entry->next;
-    }
-
-    return 0;
-}*/
-
 bool translator_contains_physically(struct address_space_translator* trans,void* phys) {
     uint64_t physical_address = ((uint64_t) phys) & ~0xFFF;
 
     if (trans->cache->physical_address == physical_address)true;
 
     struct address_space_translator_entry* entry = trans->first;
-    for (int i = 0; i < trans->size; i++) {
+    for (uint32_t i = 0; i < trans->size; i++) {
         if (entry->physical_address <= physical_address && entry->physical_address + entry->length >= physical_address) {
             trans->cache = entry;
             return true;
@@ -390,21 +315,27 @@ void translator_remove_entry_physical(struct address_space_translator* trans,voi
     }
 }
 
-void translator_init_kernel_space(struct address_space_translator* trans) {
+void translator_init_kernel_space(struct address_space_translator* trans,uint64_t stack_offset,uint64_t instruction_offset) {
     uint64_t size = 0;
     uint64_t cr3_phys = (uint64_t) get_page_pointer();
-    uint64_t cr3 = cr3_phys + PAGE_VIRT_OFFSET;
+    uint64_t cr3 = cr3_phys + stack_offset;
     for (uint16_t i = 0;i < 512;i++) {
         uint64_t pdpt_base = ((uint64_t*)cr3)[i] & 0x7FFFFFFFFFFFF000;
-        uint64_t* pdpt_table = (uint64_t*)(pdpt_base + PAGE_VIRT_OFFSET);
+        uint64_t* pdpt_table = (uint64_t*)(pdpt_base + stack_offset);
+
+        uint64_t offset = i > 500?instruction_offset:stack_offset;
+        
         if ((((uint64_t*)cr3)[i] & 0x1) == 0)continue;
         size++;
         for (uint16_t j = 0;j < 512;j++) {
             uint64_t pd_base = pdpt_table[j] & 0x7FFFFFFFFFFFF000;
-            uint64_t* pd_table = (uint64_t*)(pd_base + PAGE_VIRT_OFFSET);
+            uint64_t* pd_table = (uint64_t*)(pd_base + stack_offset);
+            if (i == 511 && j == 510){
+                volatile int a = 0;
+            }
             if ((pdpt_table[j] & 0x1) == 0) continue;
             if ((pdpt_table[j] & 0x80) != 0) {
-                translator_add_entry(trans,(void*) ((pdpt_table[j] & 0x7FFFFFFC0000FFF) + PAGE_VIRT_OFFSET),(void*) (pdpt_table[j] & 0xFFFFFFFFC0000000),0x40000000);
+                translator_add_entry(trans,(void*) ((pdpt_table[j] & 0x7FFFFFFC0000FFF) + offset),(void*) (pdpt_table[j] & 0x7FFFFFFFC0000000),0x40000000);
                 size++;
                 continue;
             }else {
@@ -413,11 +344,11 @@ void translator_init_kernel_space(struct address_space_translator* trans) {
 
             for (uint16_t k = 0;k < 512;k++) {
                 uint64_t pt_base = pd_table[k] & 0x7FFFFFFFFFFFF000;
-                uint64_t* pt_table = (uint64_t*)(pt_base + PAGE_VIRT_OFFSET);
+                uint64_t* pt_table = (uint64_t*)(pt_base + stack_offset);
                 if ((pd_table[k] & 0x1) == 0) continue;
                 if ((pd_table[k] & 0x80) != 0) {
+                    translator_add_entry(trans,(void*) ((pd_table[k] & 0x7FFFFFFFFFE00FFF) + offset),(void*) (pd_table[k] & 0x7FFFFFFFFFE00000),0x200000);
                     size++;
-                    translator_add_entry(trans,(void*) ((pd_table[k] & 0x7FFFFFFFFFE00FFF) + PAGE_VIRT_OFFSET),(void*) (pd_table[k] & 0xFFFFFFFFFFE00000),0x200000);
                     continue;
                 }else {
                     size++;
@@ -425,8 +356,8 @@ void translator_init_kernel_space(struct address_space_translator* trans) {
 
                 for (uint16_t l = 0;l < 512;l++) {
                     if ((pt_table[l] & 0x1) != 0) {
+                        translator_add_entry(trans,(void*) ((pt_table[l] & 0x7FFFFFFFFFFFFFFF) + offset),(void*) (pt_table[l] & 0x7FFFFFFFFFFFF000),0x1000);
                         size++;
-                        translator_add_entry(trans,(void*) ((pt_table[l] & 0x7FFFFFFFFFFFFFFF) + PAGE_VIRT_OFFSET),(void*) (pt_table[l] & 0xFFFFFFFFFFFFF000),0x1000);
                     }
                 }
             }

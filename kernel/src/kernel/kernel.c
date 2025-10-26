@@ -23,12 +23,16 @@
 #include <string.h>
 #include "kernel/vtty.h"
 #include "kernel/cmd.h"
+#include "kernel/scheduler.h"
+#include "kernel/process.h"
+#include "dbg.h"
 
 // Set the base revision to 2, this is recommended as this is the latest
 // base revision described by the Limine boot protocol specification.
 // See specification for further info.
 
 extern void int_call();
+extern void PIT_start();
 
 __attribute__((used, section(".requests")))
 static volatile LIMINE_BASE_REVISION(2);
@@ -194,6 +198,11 @@ struct video_Image image;
 uint32_t img_pxls[16] = {0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFF00,0xFFFFFF00,0xFFFFFF00,0xFFFFFF00,0xFFFF0000,0xFFFF0000,0xFFFF0000,0xFFFF0000,
                          0x00000000,0x00000000,0x00000000,0x00000000};
 
+void testMultithreading(){
+    printf("Thread 2");
+    asm("int $0x30");
+}
+
 //entry point
 void kmain(void) {
     // Ensure the bootloader actually understands our base revision (see spec).
@@ -257,9 +266,9 @@ void kmain(void) {
     setXSDP(rsdp_request.response->address);
 
     //MASK PIC
-    //outb(0x20, 0x20); // End of interrupt for master PIC
-    //outb(0xA0, 0x20); // End of interrupt for slave PIC
-    /*outb(0x21, 0xFF);  // Mask all interrupts on master PIC
+    outb(0x20, 0x20); // End of interrupt for master PIC
+    outb(0xA0, 0x20); // End of interrupt for slave PIC
+    outb(0x21, 0xFF);  // Mask all interrupts on master PIC
     outb(0xA1, 0xFF);  // Mask all interrupts on slave PIC
     outb(0x20, 0x11);  // Start PIC initialization
     outb(0xA0, 0x11);  // Start slave PIC initialization
@@ -268,7 +277,7 @@ void kmain(void) {
     outb(0x21, 0x04);  // Tell master PIC there's a slave at IRQ2
     outb(0xA1, 0x02);  // Tell slave PIC its cascade identity
     outb(0x21, 0x01);  // Put PICs in 8086 mode
-    outb(0xA1, 0x01);  // Put slave PIC in 8086 mode*/
+    outb(0xA1, 0x01);  // Put slave PIC in 8086 mode
 
     struct FADT* fadt = find_FADT();
     struct Parsed_MADT parsed = parsed_madt();
@@ -277,10 +286,9 @@ void kmain(void) {
     void* apic_table = map_page_APIC(parsed);
     write_msr(0x80F,read_msr(0x80F) | 0x1FF);//Set the Spurious Interrupt Vector Register bit 8 to start receiving interrupts
 
-    uint32_t msr_val = read_msr(0x01B);
-    msr_val |= (1 << 11);
-    write_msr(0x1B,msr_val);
-
+    //Mask PIC
+    //outb(0x21, 0xff);
+    //outb(0xA1, 0xff);
     IOAPIC_setup(apic_table,smp_request.response->bsp_lapic_id);
 
     //SATA_init();
@@ -298,8 +306,26 @@ void kmain(void) {
     printf("Igel OS\n");
     print_dir();
 
-    //asm(".intel_syntax noprefix");
-    //asm("int $0x40");
+    //asm(".intel_syntax noprefix");76
+    //volatile int i = ((int*) 0)[0];
+    //
+    //volatile int i = 5 / 0;
+
+
+
+    uint64_t time = messurre_LAPIC_timer();
+    init_APIC_timer();
+    printf("APIC timer frequency %d kHz\n",(int) time);
+    scheduler_init();
+
+    printf("Thread 1\n");
+    struct thread* thread2 = spawn_child_thread(&testMultithreading);
+    add_thread_to_schedule(thread2);
+
+
+    asm("int $0x30");
+
+    printf("Back");
 
     while (true){}
     hcf();

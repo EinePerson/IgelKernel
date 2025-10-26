@@ -3,15 +3,17 @@ This is the implementation of the page allocation manager
 */
 
 #include <limine.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <kernel/process.h>
 
-#include "memory.h"
-#include <stdio.h>
 #include <kernel.h>
+#include <stdio.h>
 #include <kernel/memory.h>
+#include "memory.h"
+
+#include "dbg.h"
 
 static struct memory* mem;
 static uint64_t mem_lenght;
@@ -95,7 +97,7 @@ void* find_page_area() {
 void init_page(struct limine_memmap_response* memmap, const struct limine_kernel_address_response* address_range){
     INTERNAL_MEMORY_OFFSET = address_range->virtual_base - address_range->physical_base;
     translator = create_translator();
-    translator_init_kernel_space(translator);
+    translator_init_kernel_space(translator,PAGE_VIRT_OFFSET,INTERNAL_MEMORY_OFFSET);
     //TODO for kernel the offset needs to be PAGE_VIRT_OFFSET,if a new block(user thread etc)is started it needs to be this
     //offset = get_addresses()->virtual_base - get_addresses()->physical_base;
     //offset = PAGE_VIRT_OFFSET;
@@ -259,6 +261,38 @@ void find_next_free() {
     }
     printf("Out of page memory");
     abort();
+}
+
+
+void* alloc_next_free_page_directory(){
+    uint64_t addr = 0xFFFFC00000000000;
+
+    struct address_space_translator_entry* entry = translator->first;
+
+    while (translator_contains_immideate_virtual_addr(translator,addr,4)){
+        addr += 0x1FFFFF;
+        if(addr == 0)return (void*) MEMORY_INVALID_RETURN;
+    }
+
+    uint16_t flags = DEFAULT_KERNEL_PAGE_FLAGS + PAGING_ALL_ACCESS_FLAG * !current_process->superviser | PAGING_PRESENT_FLAG;
+    struct Memory_Virtual_Address mem_addr = convertToAddr(addr);
+
+    if (!check_free_and_alloc_structures(&mem_addr,flags)){
+        printf("Invalid new page operation");
+        abort();
+    }
+
+    /*struct address_space_translator_entry* entry = translator->first;
+    for (uint32_t i = 0;i < translator->size;i++){
+        printf("%m-%m;    ",entry->physical_address,entry->physical_address + entry->length);
+        entry = entry->next;
+    }
+    printf("\n");*/
+    struct page_table* pt = get_pd(mem_addr.pml4,mem_addr.pdpt,mem_addr.pd);
+    uint64_t page = (uint64_t) alloc_physical_page();
+    //printf("%m,%m",page,(uint64_t) pt);
+    pt->page[0] = (void*) (page | flags);
+    return (void*) addr;
 }
 
 /**

@@ -6,7 +6,7 @@
 
 #include <kernel/interrupts.h>
 
-#define IDT_MAX_DESCRIPTORS 65
+#define IDT_MAX_DESCRIPTORS 50
 
 __attribute__ ((interrupt))
 void PITI(struct interrupt_frame *frame) {
@@ -91,13 +91,16 @@ void pic_remap(struct interrupt_frame *frame) {
     end_of_interrupt();
 }
 
-void* interrupt_pointers[IDT_MAX_DESCRIPTORS] = {divide_error,debug,NMII,breakP,overflow,bound,inv_op,device_np,double_fault,co_seg_over,inv_tss,seg_abs,ss_fault,prot,page_fault,
-    reserved,fpu_err,all_check,mach_check,simd,virt_exc,con_p_excetpion,
+void* interrupt_pointers[IDT_MAX_DESCRIPTORS] = {asm_divide_error,asm_debug,asm_NMII,asm_breakP,asm_overflow,asm_boundRange,asm_inv_op,asm_device_np,asm_double_fault,asm_co_seg_over,asm_inv_tss,asm_seg_abs,asm_ss_fault,asm_prot,
+    asm_page_fault,reserved,asm_fpu_err,asm_all_check,asm_mach_check,asm_simd,asm_virt_exc,asm_con_p_excetpion,
     reserved,reserved,reserved,reserved,reserved,reserved,reserved,reserved,reserved,reserved,
     //PIC remaped
-    pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,pic_remap,
+    //asm_pic_remap,asm_pic_remap,asm_pic_remap,asm_pic_remap,asm_pic_remap,asm_pic_remap,asm_pic_remap,asm_pic_remap,asm_pic_remap,asm_pic_remap,asm_pic_remap,asm_pic_remap,asm_pic_remap,asm_pic_remap,asm_pic_remap,asm_pic_remap,
     //APIC
-    PITI,keyboard_handler,cascade,com2,com1,ltp2,floppy_disk,spurious,cmos,periph,periph,periph,mouse,copu,pATA,sATA,asm_syscall};
+    asm_PITI,asm_keyboard_handler,asm_cascade,asm_com2,asm_com1,asm_ltp2,asm_floppy_disk,asm_spurious,asm_cmos,asm_periph,asm_periph,asm_periph,asm_mouse,asm_copu,asm_pATA,asm_sATA,
+    asm_syscall,asm_APIC_timer_handler};
+
+//uint8_t interrupt_ISTs[IDT_MAX_DESCRIPTORS] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
 
 typedef struct {
     uint16_t    isr_low;      // The lower 16 bits of the ISR's address
@@ -124,7 +127,7 @@ void exception_handler() {
     __asm__ volatile ("cli; hlt"); // Completely hangs the computer
 }
 
-void idt_set_descriptor(uint8_t vector, void* isr, uint8_t flags) {
+void idt_set_descriptor(uint8_t vector, void* isr, uint8_t flags,uint8_t ist) {
     idt_entry* descriptor = &idt[vector];
 
     descriptor->isr_low        = (uint64_t)isr & 0xFFFF;
@@ -144,7 +147,7 @@ void idt_init() {
     idtr.limit = (uint16_t)sizeof(idt_entry) * IDT_MAX_DESCRIPTORS - 1;
 
     for (uint8_t vector = 0; vector < IDT_MAX_DESCRIPTORS; vector++) {
-        idt_set_descriptor(vector, interrupt_pointers[vector], 0x8E);
+        idt_set_descriptor(vector, interrupt_pointers[vector], 0x8E,0);
         vectors[vector] = true;
     }
 

@@ -15,7 +15,7 @@ EXEC_PREFIX?=$(PREFIX)
 INCLUDEDIR?=$(PREFIX)/include
 LIBDIR?=$(EXEC_PREFIX)/lib
 
-CFLAGS:=$(CFLAGS) -ffreestanding -Wall -Wextra -m64 -fno-stack-protector
+CFLAGS:=$(CFLAGS) -ffreestanding -Wall -Wextra -m64 -fno-stack-protector -I../kernel/include -I ../minidbg/i686
 CPPFLAGS:=$(CPPFLAGS) -D__is_libc -Iinclude -O0
 LIBK_CFLAGS:=$(CFLAGS) -I../kernel/include
 LIBK_CPPFLAGS:=$(CPPFLAGS) -D__is_libk
@@ -88,22 +88,22 @@ libk.a: $(LIBK_OBJS)
 	ranlib $@
 
 .c.o:
-	$(CC) -MD -c $< -o $@ -std=gnu11 $(CFLAGS) $(CPPFLAGS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -MD -c $< -o $@ -std=gnu11
 
 .S.o:
-	$(CC) -MD -c $< -o $@ $(CFLAGS) $(CPPFLAGS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -MD -c $< -o $@
 
 .ig.o:
-	igc -c $< -o $@  $(IGLAGS)
+	igc $(IGLAGS) -c $< -o $@
 
 .c.libk.o:
-	$(CC) -MD -c $< -o $@ -std=gnu11 $(LIBK_CFLAGS) $(LIBK_CPPFLAGS)
+	$(CC) $(LIBK_CFLAGS) $(LIBK_CPPFLAGS) -MD -c $< -o $@ -std=gnu11
 
 .S.libk.o:
-	$(CC) -MD -c $< -o $@ $(LIBK_CFLAGS) $(LIBK_CPPFLAGS)
+	$(CC) $(LIBK_CFLAGS) $(LIBK_CPPFLAGS) -MD -c $< -o $@
 
 .ig.libk.o:
-	igc -c $< -o $@ $(LIBK_IGFLAGS)
+	igc $(LIBK_IGFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(BINARIES) *.a

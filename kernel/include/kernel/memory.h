@@ -39,4 +39,5 @@ uint16_t next_free_pml4();
 
 void invalidate_addr(void* virt_addr);
 
+struct Memory_Virtual_Address convertToAddr(uint64_t int_addr);
 #endif //MEMORY_H

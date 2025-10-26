@@ -39,5 +39,8 @@ static inline void outl(uint16_t port, uint32_t value) {
     __asm__ volatile ("outl %0, %1" : : "a"(value), "Nd"(port));
 }
 
+static void cli(){
+    __asm__ volatile ("cli");
+}
 
 #endif //UTIL_H

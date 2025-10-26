@@ -109,6 +109,7 @@ void setupGDT(){
 	tssPtr->rsp0 = (unsigned long) stack;
 	tssPtr->rsp1 = (unsigned long) stack;
 	tssPtr->rsp2 = (unsigned long) stack;
+	tssPtr->IST1 = (unsigned long) stack;
     encodeGdtEntry(gdtPtr + GDT_ENTRY_SIZE * 5,TSS_des);
 
     setGdt(GDT_ENTRY_SIZE * GDT_ENTRY_COUNT,(uint64_t) gdtPtr);

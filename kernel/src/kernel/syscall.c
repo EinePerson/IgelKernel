@@ -5,11 +5,11 @@
 #include <stdio.h>
 #include <kernel/interrupts.h>
 #include <kernel/process.h>
+#include <kernel/scheduler.h>
 
-__attribute__ ((interrupt))
-void syscall_handler(struct interrupt_frame *frame){
-    //printf("Test\n");
-    //volatile int i = 0;
-    save_cpu_state();
+//__attribute__ ((no_caller_saved_registers))
+void* syscall_handler(struct interrupt_frame* int_frame,void* rsp){
     printf("Syscall\n");
+    struct thread* thread = pop_next_and_readd_running(rsp);
+    return thread->rsp;
 }

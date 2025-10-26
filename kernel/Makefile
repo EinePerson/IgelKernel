@@ -64,6 +64,7 @@ IGFLAGS = -L "-Wall -Wextra -fno-stack-protector -fno-stack-check -fno-lto -fno-
 	--ffreestanding \
 	-I include \
     -I ../libc/include \
+    -I ../minidbg/i686 \
     --fno-mangle
     #-I kernel
 
@@ -72,6 +73,7 @@ override KCPPFLAGS := \
     -I kernel \
     -I include \
     -I ../libc/include \
+    -I ../minidbg/i686 \
     $(KCPPFLAGS) \
     -MMD \
     -MP
@@ -88,7 +90,8 @@ override KLDFLAGS += \
     -static \
     -z max-page-size=0x1000 \
     -T linker.ld \
-    ../libc/libk.a
+    ../libc/libk.a \
+    ../minidbg/libdbg.a
 
 # Use "find" to glob all *.c, *.S, and *.asm files in the tree and obtain the
 # object and header dependency file names.
